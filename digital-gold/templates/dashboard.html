@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DigiGold Dashboard</title>
+    <style>
+        :root{
+            --purple-1:#6f2dbd;
+            --purple-2:#4e1e9b;
+            --accent:#ffd54a;
+            --muted:#9aa0a6;
+        }
+        html,body{height:100%;}
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f6f8; margin: 0; -webkit-font-smoothing:antialiased; }
+
+        /* Header */
+        .app-header{background: linear-gradient(90deg,var(--purple-1),var(--purple-2)); color: #fff; padding: 15px 18px 20px; position: relative;}
+        .greeting{font-size:1.1rem; opacity:0.95; display:flex; align-items:center; gap:10px;}
+        .greeting .wave{font-size:1.2rem}
+        .user-name{font-weight:700; font-size:1.6rem; margin-top:6px}
+        .profile-avatar{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.22);border:2px solid rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;color:#fff;cursor:pointer;text-decoration:none;flex-shrink:0;transition:background .15s}
+        .top-price{position:absolute; right:18px; top:18px; background:rgba(255,255,255,0.12); padding:6px 12px; border-radius:18px; display:flex; align-items:center; gap:8px; backdrop-filter: blur(4px);}
+        .top-price .kt{background:var(--accent); color:#222; font-weight:700; padding:4px 8px; border-radius:12px; font-size:0.85rem}
+        .container { max-width:420px; margin: -40px auto 20px; padding: 0 16px; }
+        .wallet-card { background: #fff; padding: 22px; border-radius: 18px; box-shadow: 0 14px 30px rgba(17,24,39,0.08); position: relative; z-index:10; overflow:hidden; }
+        .wallet-top{display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:1}
+        .wallet-label{color:#666; font-weight:600}
+        .gold-toggle{display:flex; gap:10px; align-items:center; color:#666}
+        .metal-label{font-weight:600}
+        .metal-label.inactive{opacity:0.6; font-weight:500}
+        .metal-switch{width:44px; height:24px; background:#e9e6fb; border-radius:16px; display:inline-flex; align-items:center; padding:3px; cursor:pointer}
+        .metal-knob{width:18px; height:18px; background:#fff; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,0.12); transition:transform .18s ease}
+        .metal-switch.silver .metal-knob{transform:translateX(20px)}
+        .gold-balance{font-size:3.2rem; font-weight:800; color:#111; margin:12px 0}
+        .metal-badge{display:inline-block;padding:6px 10px;border-radius:12px;font-weight:700;margin-left:10px;font-size:0.9rem}
+        .metal-badge.gold{background:var(--accent); color:#1a1500}
+        .metal-badge.silver{background:#e6e6e6; color:#333}
+        .small-muted{color:var(--muted); font-size:0.9rem}
+        .wallet-actions{display:flex; gap:14px; position:relative; z-index:1}
+        .btn-outline{flex:1; padding:12px; border-radius:12px; border:2px solid var(--purple-1); background:transparent; color:var(--purple-1); font-weight:700; cursor:pointer}
+        .btn-solid{flex:1; padding:12px; border-radius:12px; border:none; background:var(--purple-1); color:#fff; font-weight:700; cursor:pointer}
+        .history { background: #fff; padding: 16px; border-radius: 14px; margin-top: 16px; box-shadow:0 6px 18px rgba(17,24,39,0.04) }
+        .tx-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f2f4; }
+        .tx-item:last-child{border-bottom:0}
+        .tx-type-buy { color: #2e7d32; font-weight:700; }
+        .tx-type-sell { color: #c62828; font-weight:700; }
+        @media(min-width:700px){ .container{ max-width:700px; margin-top:20px } }
+        .gild-img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;opacity:0.35;pointer-events:none;border-radius:18px;z-index:0}
+        .wallet-card > *{ position:relative; z-index:2 }
+        .wallet-card.gold-mode{ background: linear-gradient(135deg, #fffdf5 0%, #fff8e1 100%); }
+        .wallet-card.gold-mode .wallet-label{ color: #b8860b; font-weight:700 }
+        .wallet-card.gold-mode .gold-balance{ color: #7a5800; text-shadow: 1px 1px 2px rgba(255,255,255,0.7) }
+        .wallet-card.gold-mode .small-muted{ color: #a07c1c }
+        .wallet-card.gold-mode .metal-badge.gold{ background: linear-gradient(180deg,#ffd54a,#f3c13a); color:#1a1500 }
+        .wallet-card.gold-mode .gold-toggle .metal-label{ color: #8B6914 }
+        .wallet-card.gold-mode .gold-toggle .metal-label.inactive{ color: #bba24e }
+        .wallet-card.gold-mode .btn-outline{ border-color: #b8860b; color: #8B6914 }
+        .wallet-card.silver-mode{ background: linear-gradient(135deg, #f8f8fa 0%, #e8e8ec 100%); }
+        .wallet-card.silver-mode .wallet-label{ color: #555; font-weight:700 }
+        .wallet-card.silver-mode .gold-balance{ color: #222; text-shadow: 1px 1px 2px rgba(255,255,255,0.7) }
+        .wallet-card.silver-mode .small-muted{ color: #666 }
+        .wallet-card.silver-mode .metal-badge.silver{ background: #c0c0c0; color: #222; border:1px solid #aaa }
+        .wallet-card.silver-mode .gold-toggle .metal-label{ color: #444 }
+        .wallet-card.silver-mode .gold-toggle .metal-label.inactive{ color: #999 }
+        .wallet-card.silver-mode .btn-outline{ border-color: #888; color: #444 }
+        .live-modal{position:fixed;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:9999}
+        .live-card{background:#fff;border-radius:12px;width:320px;max-width:92%;padding:12px 0;box-shadow:0 20px 40px rgba(0,0,0,0.25)}
+        .live-card h4{margin:0;padding:12px 16px;border-bottom:1px solid #f2f2f2;font-weight:700}
+        .live-row{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer}
+        .live-row + .live-row{border-top:1px solid #f6f6f6}
+        .live-row .metal{display:flex;align-items:center;gap:10px}
+        .live-row .metal .dot{width:28px;height:28px;border-radius:6px;background:linear-gradient(180deg,#ffd54a,#f3c13a);display:flex;align-items:center;justify-content:center;color:#1a1500;font-weight:700}
+        .live-row .price{font-weight:700}
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+
+<div class="app-header">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div style="display:flex;align-items:center;gap:12px">
+            <a href="/profile" class="profile-avatar" title="View Profile">{{ user.name[0]|upper }}</a>
+            <div>
+                <div class="greeting">Hello <span class="wave">👋</span> ,</div>
+                <div class="user-name">{{ user.name|upper }}</div>
+            </div>
+        </div>
+        <div class="top-price">
+            <div class="kt">24KT</div>
+            <div style="font-weight:700;">₹ <span id="live-price">{{ "%.2f"|format(16000.00) }}</span>/gm</div>
+            <div style="margin-left:8px;opacity:0.9">🔔</div>
+        </div>
+    </div>
+</div>
+
+        <!-- Live Price Modal -->
+        <div id="live-modal" class="live-modal" role="dialog" aria-hidden="true">
+            <div class="live-card" role="document">
+                <h4 style="display:flex;justify-content:space-between;align-items:center">Live Price <span style="font-weight:500;font-size:0.9rem;color:#666">🔔</span></h4>
+                <div id="live-list">
+                    <div class="live-row" data-metal="gold">
+                        <div class="metal"><div class="dot">24KT</div><div>24KT GOLD</div></div>
+                        <div class="price" id="live-gold">-</div>
+                    </div>
+                    <div class="live-row" data-metal="silver">
+                        <div class="metal"><div class="dot" style="background:linear-gradient(180deg,#e6e6e6,#dcdcdc);color:#333">Ag</div><div>999 SILVER</div></div>
+                        <div class="price" id="live-silver">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+<div class="container">
+    <div class="wallet-card">
+        <img src="/static/images/digital_gold_bar.jpg" alt="Digital gold bar" class="gild-img" aria-hidden="true">
+        <div class="wallet-top">
+            <div>
+                <div class="wallet-label">Gold Balance</div>
+                <div class="gold-balance"><span id="gold-bal">{{ "%.4f"|format(user.gold_balance) }}</span>gm <span id="bal-badge" class="metal-badge gold">24KT</span></div>
+                <div class="small-muted" id="avail-text">Available to buy / sell</div>
+            </div>
+            <div class="gold-toggle">
+                <div class="metal-label" id="label-gold" style="font-size:0.9rem">Gold</div>
+                <div id="metal-switch" class="metal-switch" role="switch" aria-checked="false" tabindex="0">
+                    <div class="metal-knob"></div>
+                </div>
+                <div class="metal-label inactive" id="label-silver" style="font-size:0.9rem; opacity:0.7">Silver</div>
+            </div>
+        </div>
+
+        <div style="height:8px"></div>
+        <div class="wallet-actions">
+            <button class="btn-outline" onclick="initiateSell()">Sell</button>
+            <button class="btn-solid" onclick="initiateBuy()">Buy</button>
+        </div>
+    </div>
+
+    <!-- History -->
+    <div class="history">
+        <h3 style="margin:0 0 8px 0;">Recent Transactions</h3>
+        <div id="tx-list">
+        </div>
+    </div>
+</div>
+
+
+
+
+    <script>
+    var currentMetal = localStorage.getItem('metal') || 'gold';
+    var lastPrices = { gold: null, silver: null };
+
+    function setMetal(metal, save=true){
+        currentMetal = metal;
+        document.getElementById('label-gold').classList.toggle('inactive', metal !== 'gold');
+        document.getElementById('label-silver').classList.toggle('inactive', metal !== 'silver');
+        var switchEl = document.getElementById('metal-switch');
+        if(metal === 'silver'){
+            switchEl.classList.add('silver');
+            switchEl.setAttribute('aria-checked','true');
+        } else {
+            switchEl.classList.remove('silver');
+            switchEl.setAttribute('aria-checked','false');
+        }
+        var kt = document.querySelector('.top-price .kt');
+        if(kt) kt.textContent = (metal === 'gold') ? '24KT' : 'Ag';
+        var wl = document.querySelector('.wallet-label');
+        if(wl) wl.textContent = (metal === 'gold') ? 'Gold Balance' : 'Silver Balance';
+        var balBadge = document.getElementById('bal-badge');
+        if(balBadge){
+            if(metal === 'gold'){
+                balBadge.textContent = '24KT';
+                balBadge.classList.remove('silver');
+                balBadge.classList.add('gold');
+            } else {
+                balBadge.textContent = 'Ag';
+                balBadge.classList.remove('gold');
+                balBadge.classList.add('silver');
+            }
+        }
+        var gildImg = document.querySelector('.gild-img');
+        if(gildImg){
+            var candidates = (metal === 'gold') ? [
+                '/static/images/gold.png',
+                '/templates/static/images/gold.png',
+                '/static/images/digital_gold_bar.jpg',
+                '/templates/static/images/digital_gold_bar.jpg'
+            ] : [
+                '/static/images/silver.png',
+                '/templates/static/images/silver.png',
+                '/static/images/digital_gold_bar.jpg',
+                '/templates/static/images/digital_gold_bar.jpg'
+            ];
+            function tryLoad(list){
+                if(!list || list.length === 0){ gildImg.src = '/static/images/digital_gold_bar.jpg'; return; }
+                var img = new Image();
+                img.onload = function(){ gildImg.src = list[0]; };
+                img.onerror = function(){ list.shift(); tryLoad(list); };
+                img.src = list[0];
+            }
+            tryLoad(candidates.slice());
+            gildImg.alt = (metal === 'gold') ? 'Gold bar' : 'Silver bar';
+            // toggle visual mode on the wallet card so overlay/colors adjust for contrast
+            var walletCard = document.querySelector('.wallet-card');
+            if(walletCard){
+                walletCard.classList.toggle('silver-mode', metal === 'silver');
+                walletCard.classList.toggle('gold-mode', metal === 'gold');
+            }
+        }
+        var availText = document.getElementById('avail-text');
+        if(availText) availText.textContent = 'Available to buy / sell';
+        if(save) localStorage.setItem('metal', metal);
+        if(lastPrices[metal] != null){
+            document.getElementById('live-price').innerText = Number(lastPrices[metal]).toFixed(2);
+        }
+        refreshData();
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){
+        var switchEl = document.getElementById('metal-switch');
+        if(switchEl){
+            switchEl.addEventListener('click', function(){ setMetal(currentMetal === 'gold' ? 'silver' : 'gold'); });
+            switchEl.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMetal(currentMetal === 'gold' ? 'silver' : 'gold'); } });
+        }
+        setMetal(currentMetal, false);
+    });
+
+    var socket = io.connect('http://' + document.domain + ':' + location.port + '/gold');
+    
+    socket.on('connect', function() {
+        console.log('WebSocket Connected');
+    });
+
+    socket.on('live_price', function(data) {
+        var metal = data.metal || 'gold';
+        lastPrices[metal] = data.price;
+        if(metal === currentMetal){
+            document.getElementById('live-price').innerText = data.price.toFixed(2);
+        }
+    });
+
+    function getCookie(name) {
+    }
+
+    function refreshData() {
+        var url = '/get_data?metal=' + encodeURIComponent(currentMetal);
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                var walletEl = document.getElementById('wallet-bal');
+                if(walletEl) walletEl.innerText = Number(data.wallet).toFixed(2);
+                var goldEl = document.getElementById('gold-bal');
+                if(goldEl) {
+                    var bal = (currentMetal === 'gold') ? Number(data.gold) : Number(data.silver);
+                    goldEl.innerText = bal.toFixed(4);
+                }
+
+                if(data.price != null){
+                    lastPrices[currentMetal] = data.price;
+                    var lpEl = document.getElementById('live-price'); if(lpEl) lpEl.innerText = Number(data.price).toFixed(2);
+                }
+
+                fetch('/get_rate?metal=' + encodeURIComponent(currentMetal))
+                    .then(r => r.json())
+                    .then(d => {
+                        if(d && d.rate != null){
+                            lastPrices[currentMetal] = Number(d.rate);
+                            var lp = document.getElementById('live-price'); if(lp) lp.innerText = Number(d.rate).toFixed(2);
+                        }
+                    }).catch(()=>{});
+
+                let list = document.getElementById('tx-list');
+                list.innerHTML = '';
+                let txs = Array.isArray(data.transactions) ? data.transactions : [];
+                let filtered = txs.filter(tx => {
+                    if(tx.metal) return tx.metal.toLowerCase() === currentMetal;
+                    return true;
+                });
+                if(filtered.length === 0) list.innerHTML = '<p style="color:#888; text-align:center;">No transactions yet</p>';
+
+                filtered.slice().reverse().forEach(tx => {
+                    let colorClass = (tx.type && tx.type.toUpperCase().includes('SELL')) ? 'tx-type-sell' : 'tx-type-buy';
+                    let grams = tx.grams != null ? Number(tx.grams).toFixed(4) : '0.0000';
+                    let amount = tx.amount != null ? Number(tx.amount).toFixed(2) : '0.00';
+                    let badge = (tx.metal && tx.metal.toLowerCase() === 'silver') ? `<span class="metal-badge silver">Ag</span>` : `<span class="metal-badge gold">24KT</span>`;
+                    let html = `
+                        <div class="tx-item">
+                            <div>
+                                <div style="display:flex;align-items:center;gap:8px"><span class="${colorClass}">${tx.type || ''}</span> ${badge}</div>
+                                <small style="color:#999;">${tx.date || ''}</small>
+                            </div>
+                            <div style="text-align:right">
+                                ${grams} g<br>
+                                <strong>₹${amount}</strong>
+                            </div>
+                        </div>
+                    `;
+                    list.innerHTML += html;
+                });
+            });
+    }
+
+    setInterval(refreshData, 5000);
+    refreshData();
+
+    function initiateBuy() {
+
+        window.location.href = '/save_manually?metal=' + encodeURIComponent(currentMetal);
+    }
+
+    function initiateSell() {
+        window.location.href = '/sell_manually?metal=' + encodeURIComponent(currentMetal);
+    }
+
+    function openLiveModal(){
+        const modal = document.getElementById('live-modal');
+        if(!modal) return;
+        Promise.all([
+            fetch('/get_rate?metal=gold').then(r=>r.json()).catch(()=>({rate:lastPrices.gold})),
+            fetch('/get_rate?metal=silver').then(r=>r.json()).catch(()=>({rate:lastPrices.silver}))
+        ]).then(vals=>{
+            const g = vals[0] && vals[0].rate ? Number(vals[0].rate) : lastPrices.gold || 0;
+            const s = vals[1] && vals[1].rate ? Number(vals[1].rate) : lastPrices.silver || 0;
+            document.getElementById('live-gold').innerText = '₹' + Number(g).toFixed(2) + '/gm';
+            document.getElementById('live-silver').innerText = '₹' + Number(s).toFixed(2) + '/gm';
+            modal.style.display = 'flex';
+            modal.setAttribute('aria-hidden','false');
+        }).catch(()=>{ modal.style.display='flex'; modal.setAttribute('aria-hidden','false'); });
+    }
+
+    function closeLiveModal(){
+        const modal = document.getElementById('live-modal'); if(!modal) return; modal.style.display='none'; modal.setAttribute('aria-hidden','true');
+    }
+
+    document.addEventListener('click', function(e){
+        const tp = e.target.closest('.top-price');
+        if(tp) { openLiveModal(); }
+        if(e.target.id === 'live-modal') closeLiveModal();
+    });
+
+    document.addEventListener('click', function(e){
+        const row = e.target.closest('.live-row');
+        if(row){
+            const metal = row.getAttribute('data-metal') || 'gold';
+            closeLiveModal();
+            window.location.href = '/live_price?metal=' + encodeURIComponent(metal);
+        }
+    });
+</script>
+</body>
+</html>

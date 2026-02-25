@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Payment</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .payment-box { background: white; width: 400px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: #7b2cbf; color: white; padding: 20px; text-align: center; }
+        .header h2 { margin: 0; }
+        .amount-display { font-size: 2em; font-weight: bold; margin-top: 5px; }
+        
+        .tabs { display: flex; border-bottom: 1px solid #eee; }
+        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; color: #888; font-weight: bold; transition: 0.2s; }
+        .tab.active { color: #7b2cbf; border-bottom: 3px solid #7b2cbf; }
+
+        .content { padding: 20px; }
+        .payment-method { display: none; }
+        .payment-method.active { display: block; }
+
+        input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        
+        button { width: 100%; padding: 15px; background: #7b2cbf; color: white; border: none; border-radius: 6px; font-size: 1em; cursor: pointer; font-weight: bold; }
+        button:hover { background: #5a189a; }
+        
+        .wallet-info { background: #f3e5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; }
+        .wallet-bal { font-size: 1.5em; font-weight: bold; color: #7b2cbf; }
+        
+        .card-row { display: flex; gap: 10px; }
+        .card-row > div { flex: 1; }
+        
+        .processing { text-align: center; display: none; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #7b2cbf; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+        
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="payment-box">
+    <div class="header">
+        <h2>Payment Summary</h2>
+        <div class="amount-display">₹{{ amount }}</div>
+        <small style="opacity:0.8">Gold Investment</small>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('wallet')">Wallet</div>
+        <div class="tab" onclick="switchTab('card')">Debit Card</div>
+    </div>
+
+    <div class="content">
+        <!-- Wallet Payment Section -->
+        <div id="wallet-section" class="payment-method active">
+            <div class="wallet-info">
+                <small>Available Balance</small><br>
+                <span class="wallet-bal">₹ <span id="user-wallet">--</span></span>
+            </div>
+            <p style="color:#666; font-size:0.9em; text-align:center;">Money will be deducted from your wallet balance.</p>
+            <button onclick="payWithWallet()">Pay with Wallet</button>
+        </div>
+
+        <!-- Debit Card Section (Fake but Realistic) -->
+        <div id="card-section" class="payment-method">
+            <input type="text" placeholder="Card Number" id="card-num" maxlength="19" oninput="formatCard(this)">
+            <input type="text" placeholder="Name on Card" value="DEMO USER" readonly>
+            <div class="card-row">
+                <div><input type="text" placeholder="MM/YY" maxlength="5" value="12/26"></div>
+                <div><input type="password" placeholder="CVV" maxlength="3" value="123"></div>
+            </div>
+            <button onclick="payWithCard()">Pay ₹{{ amount }}</button>
+            <p style="color:red; text-align:center; font-size:0.8em; margin-top:10px;">*Simulated Payment Gateway</p>
+        </div>
+
+        <!-- Processing State -->
+        <div id="processing" class="processing">
+            <div class="spinner"></div>
+            <p>Processing your transaction...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    var paymentAmount = parseFloat('{{ amount }}');
+    var params = new URLSearchParams(location.search);
+    var selectedMetal = params.get('metal') || 'gold';
+    
+    // 1. Fetch user wallet balance for display (handle auth/errors)
+    fetch('/get_data')
+        .then(res => {
+            if(!res.ok) throw new Error('Unable to fetch user data (authentication required)');
+            return res.json();
+        })
+        .then(data => {
+            if(typeof data.wallet === 'number') document.getElementById('user-wallet').innerText = data.wallet.toFixed(2);
+        })
+        .catch(err => { console.error(err); document.getElementById('user-wallet').innerText = '--'; });
+
+    // 2. Tab Switching Logic
+    function switchTab(type) {
+        // Update Tab UI
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        // Update Content UI
+        document.querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
+        document.getElementById(type + '-section').classList.add('active');
+    }
+
+    // 3. Format Card Number (Add spaces)
+    function formatCard(input) {
+        let value = input.value.replace(/\s/g, '').replace(/\D/g, '');
+        let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
+        input.value = formatted;
+    }
+
+    // 4. Payment Logic
+    function toggleProcessing(show) {
+        document.getElementById('processing').style.display = show ? 'block' : 'none';
+        document.querySelectorAll('button').forEach(b => b.disabled = show);
+    }
+
+    function payWithWallet() {
+        toggleProcessing(true);
+        fetch('/process_payment', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ amount: paymentAmount, method: 'wallet', metal: selectedMetal })
+        })
+        .then(res => res.json().then(json => ({ ok: res.ok, status: res.status, body: json })).catch(()=>({ ok: res.ok, status: res.status, body: null })))
+        .then(result => {
+            if(result.ok && result.body && result.body.success){
+                var metalName = (selectedMetal === 'silver') ? 'Silver' : 'Gold';
+                alert("Success! " + metalName + " added to your account.");
+                window.location.href = '/dashboard';
+            } else {
+                toggleProcessing(false);
+                const msg = (result.body && result.body.msg) ? result.body.msg : ('Status: ' + result.status);
+                alert("Payment Error: " + msg);
+            }
+        }).catch(err => { toggleProcessing(false); alert('Payment request failed: ' + err.message); });
+    }
+
+    function payWithCard() {
+        toggleProcessing(true);
+        // Simulate delay for card processing
+        setTimeout(() => {
+            fetch('/process_payment', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ amount: paymentAmount, method: 'card', metal: selectedMetal })
+            })
+            .then(res => res.json().then(json => ({ ok: res.ok, status: res.status, body: json })).catch(()=>({ ok: res.ok, status: res.status, body: null })))
+            .then(result => {
+                if(result.ok && result.body && result.body.success){
+                    var metalName = (selectedMetal === 'silver') ? 'Silver' : 'Gold';
+                    alert("Payment Successful! " + metalName + " added to your account.");
+                    window.location.href = '/dashboard';
+                } else {
+                    toggleProcessing(false);
+                    const msg = (result.body && result.body.msg) ? result.body.msg : ('Status: ' + result.status);
+                    alert('Payment failed: ' + msg);
+                }
+            }).catch(err => { toggleProcessing(false); alert('Payment request failed: ' + err.message); });
+        }, 2000); 
+    }
+</script>
+</body>
+</html>

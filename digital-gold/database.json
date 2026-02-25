@@ -1,0 +1,49 @@
+{
+    "users": [
+        {
+            "phone": "6369559257",
+            "name": "Sriram",
+            "email": "6369559257@user.com",
+            "gold_balance": 0.05706713711179723,
+            "silver_balance": 0.0,
+            "wallet_balance": 8953.98575,
+            "bank_details": {},
+            "transactions": [
+                {
+                    "type": "BUY (Wallet)",
+                    "amount": 200.0,
+                    "grams": 0.011872381397877932,
+                    "rate": 16845.82,
+                    "metal": "gold",
+                    "date": "25 Feb 2026, 01:55 AM"
+                },
+                {
+                    "type": "SELL",
+                    "amount": 200.6,
+                    "grams": 0.0118,
+                    "rate": 17000.0,
+                    "metal": "gold",
+                    "date": "25 Feb 2026, 01:56 AM"
+                },
+                {
+                    "type": "BUY (Wallet)",
+                    "amount": 9000.0,
+                    "grams": 0.5319947557139193,
+                    "rate": 16917.46,
+                    "metal": "gold",
+                    "date": "25 Feb 2026, 03:46 PM"
+                },
+                {
+                    "type": "SELL",
+                    "amount": 7953.38575,
+                    "grams": 0.475,
+                    "rate": 16743.97,
+                    "metal": "gold",
+                    "date": "25 Feb 2026, 03:47 PM"
+                }
+            ]
+        }
+    ],
+    "gold_rate": 15944.41,
+    "silver_rate": 250.09
+}

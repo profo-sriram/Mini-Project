@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sell Metal</title>
+    <style>
+        body{font-family: 'Segoe UI', Arial, sans-serif; margin:0; background:#f5f6f8}
+        .topbar{background:#fff;padding:14px 16px;border-bottom:1px solid #eee}
+        .back{display:inline-block;margin-right:12px;cursor:pointer}
+        .rate-row{background:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin:12px;border-radius:8px}
+        .rate-label{color:#666}
+        .timer{font-weight:700}
+
+        .card{background:#fff;margin:16px;border-radius:12px;padding:18px}
+        .choice-row{display:flex;gap:16px;margin-bottom:12px}
+        .choice{display:flex;align-items:center;gap:8px;cursor:pointer}
+        .choice input{accent-color:#6f2dbd}
+
+        .amount-box{border:2px solid #6f2dbd;border-radius:12px;padding:18px;display:flex;justify-content:space-between;align-items:center;font-size:1.6rem;font-weight:700;cursor:pointer}
+        .amount-box .sub{font-size:0.9rem;font-weight:500;color:#888}
+
+        .presets{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap}
+        .preset{flex:1;min-width:70px;padding:10px;border-radius:10px;border:1px solid #ddd;text-align:center;cursor:pointer}
+        .preset.active{background:#6f2dbd;color:#fff;border-color:transparent}
+
+        .balance-info{background:#e3f2fd;padding:12px;border-radius:8px;margin-bottom:12px;font-size:0.95rem;color:#333}
+
+        .proceed-wrap{position:fixed;left:12px;right:12px;bottom:18px}
+        .proceed{background:#6f2dbd;color:#fff;padding:16px;border-radius:12px;text-align:center;font-size:1.1rem;font-weight:700;cursor:pointer}
+        .proceed:disabled{opacity:0.5;cursor:not-allowed}
+
+        .error{color:#c62828;font-weight:600;margin-top:8px}
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <span class="back" onclick="history.back()">←</span>
+        <span style="font-weight:700">Sell Metal</span>
+    </div>
+
+    <div class="rate-row">
+        <div>
+            <div style="font-size:0.95rem;color:#666">Sell Rate: <strong id="rate-display">-</strong>/gm</div>
+        </div>
+        <div style="text-align:right">
+            <div style="font-size:0.9rem;color:#666">Valid For:</div>
+            <div class="timer" id="valid-timer">--:--</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="balance-info" id="balance-info">Balance: -</div>
+        <div style="font-size:1.2rem;font-weight:700;margin-bottom:8px">How much do you want to sell?</div>
+        <div class="choice-row">
+            <label class="choice"><input type="radio" name="mode" value="grams" checked> Sell in Grams</label>
+            <label class="choice"><input type="radio" name="mode" value="rupees"> Sell in Rupees</label>
+        </div>
+
+        <div class="amount-box">
+            <div style="flex:1; display:flex; align-items:center; gap:12px">
+                <input id="amount-input" type="text" value="0.10" style="font-size:1.6rem; font-weight:700; border:none; background:transparent; outline:none; width:100%;">
+                <span id="unit-label">gm</span>
+            </div>
+            <div class="sub" id="equiv">₹1600.00</div>
+        </div>
+
+        <div class="presets" id="presets">
+        </div>
+
+        <div class="error" id="error-msg"></div>
+    </div>
+
+    <div class="proceed-wrap">
+        <div class="proceed" id="proceed">Sell Now</div>
+    </div>
+
+<script>
+    const params = new URLSearchParams(location.search);
+    const selectedMetal = params.get('metal') || 'gold';
+    let rate = 0;
+    let mode = 'grams';
+    let userBalance = 0;
+    let metalName = (selectedMetal === 'silver') ? 'Silver' : 'Gold';
+    let metalUnit = (selectedMetal === 'silver') ? 'Ag' : '24KT';
+    
+    const amountInput = document.getElementById('amount-input');
+    const equivEl = document.getElementById('equiv');
+    const rateEl = document.getElementById('rate-display');
+    const balanceInfoEl = document.getElementById('balance-info');
+    const errorEl = document.getElementById('error-msg');
+    const proceedBtn = document.getElementById('proceed');
+
+    function fetchRateAndBalance(){
+        fetch('/get_rate?metal=' + encodeURIComponent(selectedMetal))
+            .then(r=>r.json())
+            .then(d=>{ 
+                rate = Number(d.rate);
+                rateEl.innerText = '₹' + rate.toFixed(2);
+                updateEquivalent();
+            });
+
+        fetch('/get_data?metal=' + encodeURIComponent(selectedMetal))
+            .then(r=>r.json())
+            .then(d=>{
+                userBalance = (selectedMetal === 'silver') ? Number(d.silver) : Number(d.gold);
+                balanceInfoEl.innerHTML = `You have <strong>${userBalance.toFixed(4)} gm</strong> of ${metalName} | Current Value ₹${(userBalance * rate).toFixed(2)}`;
+                setupPresets();
+            });
+    }
+
+    function setupPresets(){
+        const presetsEl = document.getElementById('presets');
+        presetsEl.innerHTML = '';
+        
+        if(userBalance > 0){
+            const presetAmounts = [
+                { label: '0.10 gm', value: '0.10' },
+                { label: '0.25 gm', value: '0.25' },
+                { label: '0.50 gm', value: '0.50' },
+                { label: 'All', value: userBalance.toFixed(4) }
+            ];
+            
+            presetAmounts.forEach((p, idx) => {
+                const preset = document.createElement('div');
+                preset.className = 'preset' + (idx === 0 ? ' active' : '');
+                preset.textContent = p.label;
+                preset.setAttribute('data-value', p.value);
+                preset.addEventListener('click', ()=>{
+                    document.querySelectorAll('.preset').forEach(x=>x.classList.remove('active'));
+                    preset.classList.add('active');
+                    if(mode === 'grams'){
+                        amountInput.value = p.value;
+                    } else {
+                        let rupees = parseFloat(p.value) * rate;
+                        amountInput.value = rupees.toFixed(2);
+                    }
+                    updateEquivalent();
+                });
+                presetsEl.appendChild(preset);
+            });
+        }
+    }
+
+    function updateEquivalent(){
+        let raw = (amountInput.value || '').toString();
+        let value = Number(raw.replace(/[^0-9.]/g, '') || 0);
+        errorEl.innerText = '';
+        proceedBtn.style.opacity = '1';
+        
+        if(mode === 'grams'){
+            let rupees = value * rate;
+            equivEl.innerText = '₹' + rupees.toFixed(2);
+            
+            if(value > userBalance){
+                errorEl.innerText = `Cannot sell ${value.toFixed(4)}gm - you only have ${userBalance.toFixed(4)}gm`;
+                proceedBtn.style.opacity = '0.5';
+            }
+        } else {
+            let grams = rate > 0 ? (value / rate) : 0;
+            equivEl.innerText = grams.toFixed(4) + ' gm';
+            
+            if(grams > userBalance){
+                errorEl.innerText = `Cannot sell ₹${value.toFixed(2)} - you only have ${userBalance.toFixed(4)}gm (₹${(userBalance * rate).toFixed(2)})`;
+                proceedBtn.style.opacity = '0.5';
+            }
+        }
+    }
+
+    document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', e => {
+        mode = e.target.value;
+        const unitLabel = document.getElementById('unit-label');
+        if(mode === 'grams'){
+            unitLabel.innerText = 'gm';
+            amountInput.value = '0.10';
+        } else {
+            unitLabel.innerText = '₹';
+            amountInput.value = (rate > 0) ? (rate * 1).toFixed(2) : '0.00';
+        }
+        updateEquivalent();
+    }));
+
+    // Inline editing: sanitize and update on input/blur
+    amountInput.addEventListener('input', () => {
+        // allow only numbers and dot
+        let v = amountInput.value.replace(/[^0-9.]/g, '');
+        // prevent multiple dots
+        const parts = v.split('.');
+        if(parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+        amountInput.value = v;
+        updateEquivalent();
+    });
+
+    amountInput.addEventListener('blur', () => {
+        // format value: grams -> 4 decimals, rupees -> 2 decimals
+        let v = Number((amountInput.value || '').replace(/[^0-9.]/g, '') || 0);
+        if(mode === 'grams') amountInput.value = v.toFixed(4);
+        else amountInput.value = v.toFixed(2);
+        updateEquivalent();
+    });
+
+    let timer = 150;
+    function tick(){
+        timer--; if(timer<0) timer=150;
+        let mm = String(Math.floor(timer/60)).padStart(2,'0');
+        let ss = String(timer%60).padStart(2,'0');
+        document.getElementById('valid-timer').innerText = mm + ':' + ss;
+    }
+    setInterval(tick,1000);
+    tick();
+
+    proceedBtn.addEventListener('click', ()=>{
+        let primary = Number((amountInput.value || '').toString().replace(/[^0-9.]/g,'') || 0);
+        let grams = (mode === 'grams') ? primary : (primary / rate);
+        
+        if(grams <= 0){
+            alert('Please enter a valid amount');
+            return;
+        }
+        
+        if(grams > userBalance){
+            alert(`Cannot sell ${grams.toFixed(4)}gm - you only have ${userBalance.toFixed(4)}gm`);
+            return;
+        }
+        
+        fetch('/sell', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                grams: Number(grams.toFixed(4)),
+                metal: selectedMetal
+            })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if(d.success){
+                alert('Success! Your ' + metalName + ' has been sold for ₹' + (grams * rate).toFixed(2));
+                window.location.href = '/dashboard';
+            } else {
+                alert('Error: ' + (d.msg || 'Failed to sell'));
+            }
+        })
+        .catch(err => {
+            alert('Error: ' + err.message);
+        });
+    });
+
+    fetchRateAndBalance();
+</script>
+</body>
+</html>
